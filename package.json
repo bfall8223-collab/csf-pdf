@@ -1,0 +1,6 @@
+{
+  "name": "csf-pdf",
+  "private": true,
+  "description": "Builds City Shift Finance PDF editions automatically.",
+  "dependencies": { "playwright": "1.48.2" }
+}

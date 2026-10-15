@@ -1,0 +1,35 @@
+name: Make PDF
+
+on:
+  repository_dispatch:
+    types: [csf-pdf]
+  workflow_dispatch:
+    inputs:
+      url: { description: "Page URL", required: true }
+      id:  { description: "WordPress post ID", required: true }
+
+concurrency:
+  group: csf-pdf-${{ github.event.client_payload.id || inputs.id }}
+  cancel-in-progress: true
+
+jobs:
+  pdf:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      URL: ${{ github.event.client_payload.url || inputs.url }}
+      ID:  ${{ github.event.client_payload.id || inputs.id }}
+      KEY: ${{ secrets.CSF_UPLOAD_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20 }
+      - run: npm install
+      - run: npx playwright install --with-deps chromium
+      - name: Build PDF
+        run: node render.js "$URL" report.pdf
+      - name: Send PDF to WordPress
+        run: |
+          SITE=$(node -e "console.log(new URL(process.env.URL).origin)")
+          curl -fsS -X POST -H "X-CSF-Key: $KEY" -H "Content-Type: application/pdf" \
+            --data-binary @report.pdf "$SITE/wp-json/csf-pdf/v1/upload?id=$ID"
