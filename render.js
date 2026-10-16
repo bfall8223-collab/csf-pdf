@@ -112,7 +112,7 @@ for(const pg of pages){n++;const anchor=pg.ex&&pg.anchor?` id="${id(pg.tab)}"`:'
  else if(pg.grid)body+=`<section class="pg">${tabBar(pg.tab)}<div class="area"><div class="gwrap" style="display:flex;flex-direction:column;justify-content:center;padding-bottom:.3in">${pg.grid}</div></div>${foot(n)}</section>`;
  else body+=`<section class="pg${pg.tight?' tight':''}"${anchor}>${tabBar(pg.tab)}<div class="area"><div class="cols">${pg.html}</div></div>${foot(n)}</section>`;
 }
-if(d.practice){n++;body+=`<section class="pg">${tabBar('')}<div class="area"><div class="help"><div class="eyebrow">How we can help</div><h2 style="column-span:none">${esc(d.practice)}</h2>${d.svcText?`<p class="hp">${esc(d.svcText)}</p>`:''}${d.practiceUrl?`<p><a class="hx" href="${d.practiceUrl}">Explore ${esc(d.practice)} &rarr;</a></p>`:''}</div></div>${foot(n)}</section>`;}
+if(d.practice){n++;body+=`<section class="pg">${tabBar('')}<div class="area"><div class="help"><div class="eyebrow">How we can help</div><h2 style="column-span:none">${esc(d.practice)}</h2>${d.svcText?`<p class="hp">${esc(d.svcText)}</p>`:''}${d.practiceUrl?`<p><a class="hx" href="${d.practiceUrl}">Explore ${esc(d.practice)} <span style="font-size:1.3em;line-height:1;position:relative;top:.04em;margin-left:.08em">&rarr;</span></a></p>`:''}</div></div>${foot(n)}</section>`;}
 const pp=await b.newPage();
 await pp.setContent(`<!doctype html><html><head><meta charset="utf-8"><title>City Shift Finance - ${esc(d.title)}</title><style>${css}</style></head><body>${body}</body></html>`,{waitUntil:'load'});
 await pp.pdf({path:OUT,preferCSSPageSize:true,printBackground:true});
