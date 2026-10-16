@@ -28,6 +28,10 @@ const d=await p.evaluate(()=>{
  return {title:T('.csf-report-hero__title')||T('main h1')||T('h1'),practice:T('.csf-report-hero__practice-name'),type:T('.csf-report-hero__type')||'Insight Report',standfirst:T('.csf-report-standfirst'),hero:img?(img.currentSrc||img.src):'',url:(document.querySelector('link[rel=canonical]')||{}).href||location.href,practiceUrl:((document.querySelector('a.csf-report-hero__practice-name, a.csf-report-hero__service, a.csf-er-hero__service')||{}).href||''),fonts:(()=>{const out=[];for(const sh of document.styleSheets){let rules;try{rules=sh.cssRules}catch(e){continue}const base=sh.href||location.href;for(const r of rules){if(r.type===5){out.push(r.cssText.replace(/url\((['"]?)([^'")]+)\1\)/g,(m,q,u)=>'url("'+new URL(u,base).href+'")'));}}}return out.join('\n');})(),S};
 });
 for(const s of d.S)if(s.t==='ex'){const el=await p.$(`[data-ex="${s.n}"] .csf-report-exhibit__inner`)||await p.$(`[data-ex="${s.n}"]`);if(!el)throw new Error('Exhibit '+s.n+' not found on the page');await el.scrollIntoViewIfNeeded();await p.waitForTimeout(800);s.png='data:image/png;base64,'+(await el.screenshot({type:'png'})).toString('base64');}
+// closing "How we can help" page: text comes from the service page and the About page (Yoast descriptions)
+const meta=async u=>{try{const q=await b.newPage();await q.goto(u,{waitUntil:'domcontentloaded',timeout:45000});const r=await q.evaluate(()=>{const g=s=>{const e=document.querySelector(s);return e?(e.getAttribute('content')||'').trim():''};return g('meta[name="description"]')||g('meta[property="og:description"]')});await q.close();return r}catch(e){return ''}};
+d.svcText=d.practiceUrl?await meta(d.practiceUrl):'';
+if(process.env.CSF_TEST_SVC){d.svcText=process.env.CSF_TEST_SVC;}
 let hero='';if(d.hero){try{const r=await p.request.get(d.hero);hero='data:'+(r.headers()['content-type']||'image/jpeg')+';base64,'+(await r.body()).toString('base64');}catch(e){}}
 // unique tab list (in order)
 const tabs=[];d.S.forEach(s=>{if(!tabs.includes(s.tab))tabs.push(s.tab);});
@@ -49,7 +53,7 @@ h2{font:600 24pt/1.12 "Tiempos Headline",Georgia,serif;color:#fff;margin:0 0 .16
 p{font-size:10pt;line-height:1.55;margin:0 0 .12in;break-inside:avoid}li{break-inside:avoid}
 .cols a,.blk a,.intro a{color: inherit !important;-webkit-text-fill-color: inherit !important;text-decoration: none !important;background-color: transparent !important;background-image: linear-gradient(#1794DE,#1794DE) !important;background-repeat: no-repeat !important;background-size: 100% 1px !important;background-position: 0 calc(100% - 1px) !important;}.cols a *,.blk a *,.intro a *{color: inherit !important;-webkit-text-fill-color: inherit !important;}
 strong,b{color:#fff}
-.tight p,.tight li,.tight .num{font-size:9.4pt!important;line-height:1.48!important}.tight p,.tight .num{margin-bottom:.09in!important}.gwrap{height:100%;overflow:hidden}.grid{display:grid;gap:.5in;margin-top:.1in}.blk{}.blk p{font-size:12pt;line-height:1.6}.intro{column-span:all;max-width:8.6in;margin:0 0 .22in}.intro p{font-size:11.5pt;line-height:1.55;color:#fff}ul{margin:0;padding-left:.3in;break-inside:avoid}
+.tight p,.tight li,.tight .num{font-size:9.4pt!important;line-height:1.48!important}.tight p,.tight .num{margin-bottom:.09in!important}.help{height:100%;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;padding-bottom:.3in}.help h2{font-size:28pt;margin:.18in 0 .26in}.help .hp{font-size:13pt;line-height:1.6;max-width:7.4in;color:#E8EAED;margin:0 0 .3in}.help .hx{color:#1794DE;text-decoration:none;font-weight:700;font-size:11pt}.help .ha{margin-top:.55in;max-width:7.4in;font-size:9.5pt;color:#8FA3C4}.gwrap{height:100%;overflow:hidden}.grid{display:grid;gap:.5in;margin-top:.1in}.blk{}.blk p{font-size:12pt;line-height:1.6}.intro{column-span:all;max-width:8.6in;margin:0 0 .22in}.intro p{font-size:11.5pt;line-height:1.55;color:#fff}ul{margin:0;padding-left:.3in;break-inside:avoid}
 li{font-size:10pt;line-height:1.55;margin:0 0 .11in}
 .num{display:grid;grid-template-columns:.38in 1fr;font-size:10pt;line-height:1.55;margin:0 0 .12in;break-inside:avoid}
 .num i{font:600 16pt/1 "Tiempos Headline",Georgia,serif;color:#1794DE;font-style:normal}
@@ -108,8 +112,9 @@ for(const pg of pages){n++;const anchor=pg.ex&&pg.anchor?` id="${id(pg.tab)}"`:'
  else if(pg.grid)body+=`<section class="pg">${tabBar(pg.tab)}<div class="area"><div class="gwrap" style="display:flex;flex-direction:column;justify-content:center;padding-bottom:.3in">${pg.grid}</div></div>${foot(n)}</section>`;
  else body+=`<section class="pg${pg.tight?' tight':''}"${anchor}>${tabBar(pg.tab)}<div class="area"><div class="cols">${pg.html}</div></div>${foot(n)}</section>`;
 }
+if(d.practice){n++;body+=`<section class="pg">${tabBar('')}<div class="area"><div class="help"><div class="eyebrow">How we can help</div><h2 style="column-span:none">${esc(d.practice)}</h2>${d.svcText?`<p class="hp">${esc(d.svcText)}</p>`:''}${d.practiceUrl?`<p><a class="hx" href="${d.practiceUrl}">Explore ${esc(d.practice)} &rarr;</a></p>`:''}</div></div>${foot(n)}</section>`;}
 const pp=await b.newPage();
-await pp.setContent(`<!doctype html><html><head><meta charset="utf-8"><style>${css}</style></head><body>${body}</body></html>`,{waitUntil:'load'});
+await pp.setContent(`<!doctype html><html><head><meta charset="utf-8"><title>City Shift Finance - ${esc(d.title)}</title><style>${css}</style></head><body>${body}</body></html>`,{waitUntil:'load'});
 await pp.pdf({path:OUT,preferCSSPageSize:true,printBackground:true});
 await b.close();
 }catch(e){require('fs').writeFileSync('error.txt',String(e&&e.message||e).slice(0,400));console.error(e);process.exit(1);}
