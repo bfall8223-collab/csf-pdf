@@ -4,7 +4,7 @@ const URL_=process.argv[2], OUT=process.argv[3];
 (async()=>{try{
 const b=await chromium.launch();
 const p=await b.newPage({viewport:{width:1200,height:900},deviceScaleFactor:3,userAgent:'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0.0.0 Safari/537.36 CSF-PDF'});
-await p.goto(URL_,{waitUntil:'load',timeout:90000});await p.waitForSelector('.csf-report-hero__title',{timeout:30000});await p.waitForTimeout(4000);
+await p.goto(URL_,{waitUntil:'load',timeout:90000});await p.waitForSelector('.csf-report-hero__title, h1',{state:'attached',timeout:45000});await p.waitForTimeout(4000);
 await p.addStyleTag({content:'.csf-report-exhibit button,.csf-report-exhibit [role=button]{display:none!important}'});
 // 1. content straight from the page (links, bold and italics kept)
 const d=await p.evaluate(()=>{
@@ -25,7 +25,7 @@ const d=await p.evaluate(()=>{
  const lastEx=S.map(x=>x.t).lastIndexOf('ex');let prev='Introduction';
  S.forEach((x,i)=>{if(x.late&&i<lastEx){x.tab=prev;x.title='';}if(x.t==='text')prev=x.tab;});
  // merge consecutive sections that share a tab name
- return {title:T('.csf-report-hero__title'),practice:T('.csf-report-hero__practice-name'),type:T('.csf-report-hero__type')||'Insight Report',standfirst:T('.csf-report-standfirst'),hero:img?(img.currentSrc||img.src):'',url:(document.querySelector('link[rel=canonical]')||{}).href||location.href,fonts:(()=>{const out=[];for(const sh of document.styleSheets){let rules;try{rules=sh.cssRules}catch(e){continue}const base=sh.href||location.href;for(const r of rules){if(r.type===5){out.push(r.cssText.replace(/url\((['"]?)([^'")]+)\1\)/g,(m,q,u)=>'url("'+new URL(u,base).href+'")'));}}}return out.join('\n');})(),S};
+ return {title:T('.csf-report-hero__title')||T('main h1')||T('h1'),practice:T('.csf-report-hero__practice-name'),type:T('.csf-report-hero__type')||'Insight Report',standfirst:T('.csf-report-standfirst'),hero:img?(img.currentSrc||img.src):'',url:(document.querySelector('link[rel=canonical]')||{}).href||location.href,practiceUrl:((document.querySelector('a.csf-report-hero__practice-name, a.csf-report-hero__service, a.csf-er-hero__service')||{}).href||''),fonts:(()=>{const out=[];for(const sh of document.styleSheets){let rules;try{rules=sh.cssRules}catch(e){continue}const base=sh.href||location.href;for(const r of rules){if(r.type===5){out.push(r.cssText.replace(/url\((['"]?)([^'")]+)\1\)/g,(m,q,u)=>'url("'+new URL(u,base).href+'")'));}}}return out.join('\n');})(),S};
 });
 for(const s of d.S)if(s.t==='ex'){const el=await p.$(`[data-ex="${s.n}"] .csf-report-exhibit__inner`)||await p.$(`[data-ex="${s.n}"]`);if(!el)throw new Error('Exhibit '+s.n+' not found on the page');await el.scrollIntoViewIfNeeded();await p.waitForTimeout(800);s.png='data:image/png;base64,'+(await el.screenshot({type:'png'})).toString('base64');}
 let hero='';if(d.hero){try{const r=await p.request.get(d.hero);hero='data:'+(r.headers()['content-type']||'image/jpeg')+';base64,'+(await r.body()).toString('base64');}catch(e){}}
@@ -47,7 +47,7 @@ body{font-family:"Helvetica Now","Helvetica Neue",Helvetica,Arial,sans-serif;col
 .cols{height:100%;column-count:2;column-gap:.5in;column-fill:balance}
 h2{font:600 24pt/1.12 "Tiempos Headline",Georgia,serif;color:#fff;margin:0 0 .16in;column-span:all}
 p{font-size:10pt;line-height:1.55;margin:0 0 .12in;break-inside:avoid}li{break-inside:avoid}
-a{color:#1794DE;text-decoration:underline;text-underline-offset:2px}
+.cols a,.blk a,.intro a{color: inherit !important;-webkit-text-fill-color: inherit !important;text-decoration: none !important;background-color: transparent !important;background-image: linear-gradient(#1794DE,#1794DE) !important;background-repeat: no-repeat !important;background-size: 100% 1px !important;background-position: 0 calc(100% - 1px) !important;}.cols a *,.blk a *,.intro a *{color: inherit !important;-webkit-text-fill-color: inherit !important;}
 strong,b{color:#fff}
 .tight p,.tight li,.tight .num{font-size:9.4pt!important;line-height:1.48!important}.tight p,.tight .num{margin-bottom:.09in!important}.gwrap{height:100%;overflow:hidden}.grid{display:grid;gap:.5in;margin-top:.1in}.blk{}.blk p{font-size:12pt;line-height:1.6}.intro{column-span:all;max-width:8.6in;margin:0 0 .22in}.intro p{font-size:11.5pt;line-height:1.55;color:#fff}ul{margin:0;padding-left:.3in;break-inside:avoid}
 li{font-size:10pt;line-height:1.55;margin:0 0 .11in}
@@ -102,7 +102,7 @@ const pages=await lay.evaluate(({S})=>{
 },{S:d.S}).then(r=>r.out);
 const exById={};d.S.forEach(s=>{if(s.t==='ex')exById[s.n]=s;});
 let body='',n=1,seen={};
-body+=`<section class="pg cover"><div class="l"><div class="eyebrow">${esc(d.practice)} <span>| ${esc(d.type)}</span></div><h1>${esc(d.title)}</h1><p class="sf">${esc(d.standfirst)}</p></div><div class="r" style="background-image:url('${hero}')"></div></section>`;
+body+=`<section class="pg cover"><div class="l"><div class="eyebrow">${d.practiceUrl?`<a href="${d.practiceUrl}" style="color:#1794DE;text-decoration:none">${esc(d.practice)}</a>`:esc(d.practice)} <span>| ${esc(d.type)}</span></div><h1>${esc(d.title)}</h1><p class="sf">${esc(d.standfirst)}</p></div><div class="r" style="background-image:url('${hero}')"></div></section>`;
 for(const pg of pages){n++;const anchor=pg.ex&&pg.anchor?` id="${id(pg.tab)}"`:'';
  if(pg.ex){const e=exById[pg.ex];body+=`<section class="pg"${anchor}>${tabBar(pg.tab)}<div class="exw"><div class="lab">Exhibit ${e.n}</div><div class="im"><img src="${e.png}"></div></div>${foot(n)}</section>`;}
  else if(pg.grid)body+=`<section class="pg">${tabBar(pg.tab)}<div class="area"><div class="gwrap" style="display:flex;flex-direction:column;justify-content:center;padding-bottom:.3in">${pg.grid}</div></div>${foot(n)}</section>`;
