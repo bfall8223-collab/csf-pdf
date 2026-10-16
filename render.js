@@ -10,7 +10,7 @@ await p.addStyleTag({content:'.csf-report-exhibit button,.csf-report-exhibit [ro
 const d=await p.evaluate(()=>{
  const T=s=>{const e=document.querySelector(s);return e?e.innerText.trim():''};
  const clean=el=>{const c=el.cloneNode(true);c.querySelectorAll('*').forEach(n=>{if(!['A','STRONG','B','EM','I','SUP','BR'].includes(n.tagName)){n.replaceWith(...n.childNodes);return;}[...n.attributes].forEach(a=>{if(!(n.tagName==='A'&&a.name==='href'))n.removeAttribute(a.name)});if(n.tagName==='A')n.setAttribute('href',n.href);});return c.innerHTML.trim();};
- const paras=el=>el?[...el.querySelectorAll('p')].filter(x=>x.innerText.trim()).map(clean):[];
+ const paras=el=>el?[...el.querySelectorAll('p')].filter(x=>x.innerText.trim()&&!x.closest('.csf-pdf-dl,.csf-report-subscribe,button,[hidden]')).map(clean):[];
  const img=document.querySelector('.csf-report-hero__media img');
  const S=[];let ex=0;
  document.querySelectorAll('.csf-report-intro, .csf-report-findings, .csf-report-exhibit, .csf-report-numbered, .csf-report-three-paragraphs').forEach(s=>{
@@ -32,7 +32,7 @@ let hero='';if(d.hero){try{const r=await p.request.get(d.hero);hero='data:'+(r.h
 // unique tab list (in order)
 const tabs=[];d.S.forEach(s=>{if(!tabs.includes(s.tab))tabs.push(s.tab);});
 const id=t=>'s-'+t.toLowerCase().replace(/[^a-z0-9]+/g,'-');
-const css=d.fonts+`
+const css=d.fonts+(process.env.CSF_TEST_BIG?'p,li,.num{font-size:10.8pt!important}':'')+`
 @page{size:13.333in 7.5in;margin:0}
 *{box-sizing:border-box}
 html,body{margin:0;background:#071D46;-webkit-print-color-adjust:exact;print-color-adjust:exact}
@@ -49,7 +49,7 @@ h2{font:600 24pt/1.12 "Tiempos Headline",Georgia,serif;color:#fff;margin:0 0 .16
 p{font-size:10pt;line-height:1.55;margin:0 0 .12in;break-inside:avoid}li{break-inside:avoid}
 a{color:#1794DE;text-decoration:underline;text-underline-offset:2px}
 strong,b{color:#fff}
-.gwrap{height:100%;overflow:hidden}.grid{display:grid;gap:.5in;margin-top:.1in}.blk{}.blk p{font-size:12pt;line-height:1.6}.intro{column-span:all;max-width:8.6in;margin:0 0 .22in}.intro p{font-size:11.5pt;line-height:1.55;color:#fff}ul{margin:0;padding-left:.3in;break-inside:avoid}
+.tight p,.tight li,.tight .num{font-size:9.4pt!important;line-height:1.48!important}.tight p,.tight .num{margin-bottom:.09in!important}.gwrap{height:100%;overflow:hidden}.grid{display:grid;gap:.5in;margin-top:.1in}.blk{}.blk p{font-size:12pt;line-height:1.6}.intro{column-span:all;max-width:8.6in;margin:0 0 .22in}.intro p{font-size:11.5pt;line-height:1.55;color:#fff}ul{margin:0;padding-left:.3in;break-inside:avoid}
 li{font-size:10pt;line-height:1.55;margin:0 0 .11in}
 .num{display:grid;grid-template-columns:.38in 1fr;font-size:10pt;line-height:1.55;margin:0 0 .12in;break-inside:avoid}
 .num i{font:600 16pt/1 "Tiempos Headline",Georgia,serif;color:#1794DE;font-style:normal}
@@ -75,9 +75,9 @@ const pages=await lay.evaluate(({S})=>{
  const out=[];const doc=document.getElementById('doc');
  const html=bl=>bl.intro?`<div class="intro">${bl.intro.map(x=>`<p>${x}</p>`).join('')}</div>`:bl.p!==undefined?`<p>${bl.p}</p>`:bl.ul?`<ul>${bl.ul.map(x=>`<li>${x}</li>`).join('')}</ul>`:`<div class="num"><i>${bl.num}</i><div>${bl.h}</div></div>`;
  const slug=t=>'s-'+t.toLowerCase().replace(/[^a-z0-9]+/g,'-');
- const test=items=>{doc.innerHTML=`<div class="pg"><div class="area"><div class="cols">${items.map(x=>x.h).join('')}</div></div></div>`;const c=doc.querySelector('.cols');const ok=c.scrollWidth<=c.clientWidth+2&&c.scrollHeight<=c.clientHeight+2;if(!ok)window.__f=(window.__f||[]).concat([[items.length,c.scrollWidth,c.clientWidth,c.scrollHeight,c.clientHeight]]);return ok;};
+ const test=(items,tight)=>{doc.innerHTML=`<div class="pg${tight?' tight':''}"><div class="area"><div class="cols">${items.map(x=>x.h).join('')}</div></div></div>`;const c=doc.querySelector('.cols');const ok=c.scrollWidth<=c.clientWidth+2&&c.scrollHeight<=c.clientHeight+2;if(!ok)window.__f=(window.__f||[]).concat([[items.length,c.scrollWidth,c.clientWidth,c.scrollHeight,c.clientHeight]]);return ok;};
  let cur=[];const seen={};
- const flush=()=>{if(cur.length){out.push({tab:cur[0].tab,html:cur.map(x=>x.h).join('')});cur=[];}};
+ const flush=()=>{if(cur.length){out.push({tab:cur[0].tab,items:cur.slice(),html:cur.map(x=>x.h).join('')});cur=[];}};
  for(const s of S){
   if(s.t==='ex'){flush();out.push({tab:s.tab,ex:s.n,anchor:!seen[s.tab]});seen[s.tab]=1;continue;}
   if(s.tab==='Implications'&&s.title){ // block grid: one block per paragraph, first sentence as bold lead
@@ -92,7 +92,13 @@ const pages=await lay.evaluate(({S})=>{
   items.forEach((h,k)=>{if(k===0&&!seen[s.tab]){h=`<a id="${slug(s.tab)}" style="display:block;height:0"></a>`+h;seen[s.tab]=1;}
    const it={tab:s.tab,h};if(test([...cur,it]))cur.push(it);else{flush();cur=[it];}});
  }
- flush();return {out,f:window.__f};
+ flush();
+ for(let i=out.length-1;i>0;i--){const c=out[i],pv=out[i-1];
+  if(!c.items||!pv.items||c.items.length>2)continue;
+  const all=pv.items.concat(c.items);
+  if(test(all,true)){pv.items=all;pv.tight=true;pv.html=all.map(x=>x.h).join('');out.splice(i,1);}
+ }
+ return {out,f:window.__f};
 },{S:d.S}).then(r=>r.out);
 const exById={};d.S.forEach(s=>{if(s.t==='ex')exById[s.n]=s;});
 let body='',n=1,seen={};
@@ -100,7 +106,7 @@ body+=`<section class="pg cover"><div class="l"><div class="eyebrow">${esc(d.pra
 for(const pg of pages){n++;const anchor=pg.ex&&pg.anchor?` id="${id(pg.tab)}"`:'';
  if(pg.ex){const e=exById[pg.ex];body+=`<section class="pg"${anchor}>${tabBar(pg.tab)}<div class="exw"><div class="lab">Exhibit ${e.n}</div><div class="im"><img src="${e.png}"></div></div>${foot(n)}</section>`;}
  else if(pg.grid)body+=`<section class="pg">${tabBar(pg.tab)}<div class="area"><div class="gwrap" style="display:flex;flex-direction:column;justify-content:center;padding-bottom:.3in">${pg.grid}</div></div>${foot(n)}</section>`;
- else body+=`<section class="pg"${anchor}>${tabBar(pg.tab)}<div class="area"><div class="cols">${pg.html}</div></div>${foot(n)}</section>`;
+ else body+=`<section class="pg${pg.tight?' tight':''}"${anchor}>${tabBar(pg.tab)}<div class="area"><div class="cols">${pg.html}</div></div>${foot(n)}</section>`;
 }
 const pp=await b.newPage();
 await pp.setContent(`<!doctype html><html><head><meta charset="utf-8"><style>${css}</style></head><body>${body}</body></html>`,{waitUntil:'load'});
