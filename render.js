@@ -1,10 +1,10 @@
 // Landscape 16:9 editorial PDF, built automatically from a published CSF page.
 const {chromium}=require('playwright');
 const URL_=process.argv[2], OUT=process.argv[3];
-(async()=>{
+(async()=>{try{
 const b=await chromium.launch();
 const p=await b.newPage({viewport:{width:1200,height:900},deviceScaleFactor:3,userAgent:'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0.0.0 Safari/537.36 CSF-PDF'});
-await p.goto(URL_,{waitUntil:'networkidle'});await p.waitForTimeout(3500);
+await p.goto(URL_,{waitUntil:'load',timeout:90000});await p.waitForSelector('.csf-report-hero__title',{timeout:30000});await p.waitForTimeout(4000);
 await p.addStyleTag({content:'.csf-report-exhibit button,.csf-report-exhibit [role=button]{display:none!important}'});
 // 1. content straight from the page (links, bold and italics kept)
 const d=await p.evaluate(()=>{
@@ -27,7 +27,7 @@ const d=await p.evaluate(()=>{
  // merge consecutive sections that share a tab name
  return {title:T('.csf-report-hero__title'),practice:T('.csf-report-hero__practice-name'),type:T('.csf-report-hero__type')||'Insight Report',standfirst:T('.csf-report-standfirst'),hero:img?(img.currentSrc||img.src):'',url:(document.querySelector('link[rel=canonical]')||{}).href||location.href,fonts:(()=>{const out=[];for(const sh of document.styleSheets){let rules;try{rules=sh.cssRules}catch(e){continue}const base=sh.href||location.href;for(const r of rules){if(r.type===5){out.push(r.cssText.replace(/url\((['"]?)([^'")]+)\1\)/g,(m,q,u)=>'url("'+new URL(u,base).href+'")'));}}}return out.join('\n');})(),S};
 });
-for(const s of d.S)if(s.t==='ex'){const el=await p.$(`[data-ex="${s.n}"] .csf-report-exhibit__inner`)||await p.$(`[data-ex="${s.n}"]`);await el.scrollIntoViewIfNeeded();await p.waitForTimeout(800);s.png='data:image/png;base64,'+(await el.screenshot({type:'png'})).toString('base64');}
+for(const s of d.S)if(s.t==='ex'){const el=await p.$(`[data-ex="${s.n}"] .csf-report-exhibit__inner`)||await p.$(`[data-ex="${s.n}"]`);if(!el)throw new Error('Exhibit '+s.n+' not found on the page');await el.scrollIntoViewIfNeeded();await p.waitForTimeout(800);s.png='data:image/png;base64,'+(await el.screenshot({type:'png'})).toString('base64');}
 let hero='';if(d.hero){try{const r=await p.request.get(d.hero);hero='data:'+(r.headers()['content-type']||'image/jpeg')+';base64,'+(await r.body()).toString('base64');}catch(e){}}
 // unique tab list (in order)
 const tabs=[];d.S.forEach(s=>{if(!tabs.includes(s.tab))tabs.push(s.tab);});
@@ -106,4 +106,5 @@ const pp=await b.newPage();
 await pp.setContent(`<!doctype html><html><head><meta charset="utf-8"><style>${css}</style></head><body>${body}</body></html>`,{waitUntil:'load'});
 await pp.pdf({path:OUT,preferCSSPageSize:true,printBackground:true});
 await b.close();
+}catch(e){require('fs').writeFileSync('error.txt',String(e&&e.message||e).slice(0,400));console.error(e);process.exit(1);}
 })();
