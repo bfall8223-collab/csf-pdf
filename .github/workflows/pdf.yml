@@ -15,7 +15,7 @@ concurrency:
 jobs:
   pdf:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     env:
       URL: ${{ github.event.client_payload.url || inputs.url }}
       ID:  ${{ github.event.client_payload.id || inputs.id }}
@@ -26,10 +26,21 @@ jobs:
         with: { node-version: 20 }
       - run: npm install
       - run: npx playwright install --with-deps chromium
-      - name: Build PDF
-        run: node render.js "$URL" report.pdf
-      - name: Send PDF to WordPress
+      - name: Build PDF (retries once)
+        run: node render.js "$URL" report.pdf || (sleep 20 && node render.js "$URL" report.pdf)
+      - name: Send PDF to WordPress (retries once)
         run: |
           SITE=$(node -e "console.log(new URL(process.env.URL).origin)")
-          curl -fsS -X POST -H "X-CSF-Key: $KEY" -H "Content-Type: application/pdf" \
-            --data-binary @report.pdf "$SITE/wp-json/csf-pdf/v1/upload?id=$ID"
+          for i in 1 2; do
+            curl -fsS -X POST -H "X-CSF-Key: $KEY" -H "Content-Type: application/pdf" \
+              --data-binary @report.pdf "$SITE/wp-json/csf-pdf/v1/upload?id=$ID" && exit 0
+            echo "upload failed" > error.txt; sleep 15
+          done
+          exit 1
+      - name: Tell WordPress what went wrong
+        if: failure()
+        run: |
+          SITE=$(node -e "console.log(new URL(process.env.URL).origin)")
+          MSG=$(cat error.txt 2>/dev/null || echo "build step failed")
+          curl -sS -X POST -H "X-CSF-Key: $KEY" -H "Content-Type: text/plain" \
+            --data-binary "$MSG" "$SITE/wp-json/csf-pdf/v1/fail?id=$ID" || true
