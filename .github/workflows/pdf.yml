@@ -20,6 +20,9 @@ jobs:
       URL: ${{ github.event.client_payload.url || inputs.url }}
       ID:  ${{ github.event.client_payload.id || inputs.id }}
       KEY: ${{ secrets.CSF_UPLOAD_KEY }}
+      # Case studies send their own receiving addresses (CSF Case Study Editorial plugin); Insight Reports use the defaults.
+      UPLOAD: ${{ github.event.client_payload.upload }}
+      FAIL: ${{ github.event.client_payload.fail }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -33,7 +36,7 @@ jobs:
           SITE=$(node -e "console.log(new URL(process.env.URL).origin)")
           for i in 1 2; do
             curl -fsS -X POST -H "X-CSF-Key: $KEY" -H "Content-Type: application/pdf" \
-              --data-binary @report.pdf "$SITE/wp-json/csf-pdf/v1/upload?id=$ID" && exit 0
+              --data-binary @report.pdf "${UPLOAD:-$SITE/wp-json/csf-pdf/v1/upload}?id=$ID" && exit 0
             echo "upload failed" > error.txt; sleep 15
           done
           exit 1
@@ -43,4 +46,4 @@ jobs:
           SITE=$(node -e "console.log(new URL(process.env.URL).origin)")
           MSG=$(cat error.txt 2>/dev/null || echo "build step failed")
           curl -sS -X POST -H "X-CSF-Key: $KEY" -H "Content-Type: text/plain" \
-            --data-binary "$MSG" "$SITE/wp-json/csf-pdf/v1/fail?id=$ID" || true
+            --data-binary "$MSG" "${FAIL:-$SITE/wp-json/csf-pdf/v1/fail}?id=$ID" || true
