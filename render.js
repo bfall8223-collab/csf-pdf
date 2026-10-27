@@ -1,10 +1,13 @@
 // Landscape 16:9 editorial PDF, built automatically from a published CSF page.
+// Case studies are handed to case-study.js (portrait US Letter layout).
 const {chromium}=require('playwright');
 const URL_=process.argv[2], OUT=process.argv[3];
 (async()=>{try{
 const b=await chromium.launch();
 const p=await b.newPage({viewport:{width:1200,height:900},deviceScaleFactor:3,userAgent:'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0.0.0 Safari/537.36 CSF-PDF'});
 await p.goto(URL_,{waitUntil:'load',timeout:90000});await p.waitForSelector('.csf-report-hero__title, h1',{state:'attached',timeout:45000});await p.waitForTimeout(4000);
+// Case studies (new layout) use their own portrait design: see case-study.js
+if(await p.$('.csf-cs-bd')){await require('./case-study.js')(b,p,OUT);await b.close();return;}
 await p.addStyleTag({content:'.csf-report-exhibit button,.csf-report-exhibit [role=button]{display:none!important}'});
 // 1. content straight from the page (links, bold and italics kept)
 const d=await p.evaluate(()=>{
