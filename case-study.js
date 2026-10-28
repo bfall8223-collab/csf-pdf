@@ -4,6 +4,8 @@
 // (At a glance, phases, chart) that the CSF Case Study Editorial plugin prints on gated case studies.
 // Pages: cover, The Opportunity, The Solution, The Impact (+ How we can help). Long sections
 // continue onto extra pages automatically.
+// NEW (Oct 2026): if the PDF content box also has cover_image + page2_headline + page2_body,
+// the PDF is the designed cover image followed by a McKinsey-style article page (see coverArticle).
 module.exports = async function caseStudyPdf(b, p, OUT) {
   const d = await p.evaluate(() => {
     const q = (s, r) => (r || document).querySelector(s);
@@ -22,11 +24,12 @@ module.exports = async function caseStudyPdf(b, p, OUT) {
       solHead: data.solution_heading || head(q('.csf-cs-solution__intro', sol)), sol: paras(q('.csf-cs-solution__copy', sol), '.csf-cs-feature-wrap'),
       impHead: head(q('.csf-cs-impact__header', imp)), imp: paras(q('.csf-cs-impact__copy', imp)),
       quote: T('.csf-cs-impact__quote', imp).replace(/^[“"]+|[”"]+$/g, ''), cite: T('.csf-cs-impact__attribution', imp),
-      oppHead: data.opportunity_heading || '', glance: data.glance || {}, phases: data.phases || [], chart: data.chart || {}, contact: data.contact_url || '/contact/',
+      oppHead: data.opportunity_heading || '', cover: data.cover_image || '', p2Head: data.page2_headline || '', p2Body: data.page2_body || '', glance: data.glance || {}, phases: data.phases || [], chart: data.chart || {}, contact: data.contact_url || '/contact/',
       fonts: (() => { const out = []; for (const sh of document.styleSheets) { let rules; try { rules = sh.cssRules; } catch (e) { continue; } const base = sh.href || location.href; for (const r of rules) { if (r.type === 5) out.push(r.cssText.replace(/url\((['"]?)([^'")]+)\1\)/g, (m, qq, u) => 'url("' + new URL(u, base).href + '")')); } } return out.join('\n'); })()
     };
   });
   if (!d.title) throw new Error('Case study title not found on the page');
+  if (d.cover && d.p2Body) return coverArticle(b, d, OUT);
   if (!d.intro.length) throw new Error('Case study Opportunity text not found on the page');
 
   // service page one-liner for "How we can help" (Yoast description of the practice page)
@@ -147,3 +150,52 @@ strong,b{color:#fff}
   await pp.waitForTimeout(500);
   await pp.pdf({ path: OUT, preferCSSPageSize: true, printBackground: true });
 };
+
+
+// ---------------------------------------------------------------------------
+// Cover + article layout (approved Oct 2026, modeled on McKinsey on Finance page 3).
+// Used when the PDF content box has "cover_image", "page2_headline" and "page2_body".
+// Page 1: the designed cover image, full page. Page 2 onward: blue gradient, practice tab
+// top right, large serif headline, body in two columns; long text continues on more pages.
+// Without those fields the original portrait layout above is used, unchanged.
+async function coverArticle(b, d, OUT) {
+  const esc = s => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
+  let cover = '';
+  try { const pg = await b.newPage(); const r = await pg.request.get(d.cover); if (r.ok() && /^image\//.test(r.headers()['content-type'] || '')) cover = 'data:' + r.headers()['content-type'] + ';base64,' + (await r.body()).toString('base64'); await pg.close(); } catch (e) {}
+  if (!cover) throw new Error('PDF cover image could not be downloaded: ' + d.cover);
+  const paras = (() => { const m = String(d.p2Body).match(/<p[^>]*>[\s\S]*?<\/p>/gi); return (m && m.length ? m : [String(d.p2Body)]).map(x => x.replace(/^<p[^>]*>|<\/p>$/gi, '').trim()).filter(Boolean); })();
+  const css = d.fonts + `
+@page{size:8.5in 11in;margin:0}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+body{font-family:"Helvetica Now","Helvetica Neue",Helvetica,Arial,sans-serif;color:#fff}
+.pg{width:8.5in;height:11in;position:relative;overflow:hidden;page-break-after:always;background:linear-gradient(180deg,#1a58f8 0%,#0b3cc8 35%,#012182 70%,#01103f 100%)}
+.cv{background:#01103f center/cover no-repeat}
+.tab{position:absolute;top:0;right:.56in;border:1pt solid #4cd9fd;border-top:none;padding:.14in .1in .07in;font-weight:700;font-size:6.5pt;letter-spacing:.09em;text-transform:uppercase;color:#4cd9fd}
+.tab a{color:inherit;text-decoration:none}
+h1{position:absolute;top:1.28in;left:1.64in;right:.83in;font:600 34pt/1.08 "Tiempos Headline",Georgia,serif;color:#fff}
+.area{position:absolute;left:1.64in;right:.61in;bottom:.83in}
+.cols{column-count:2;column-gap:.31in;height:100%;column-fill:auto}
+p{font-size:8.4pt;line-height:1.5;color:rgba(255,255,255,.92);margin:0 0 .125in}
+p a{color:inherit;text-decoration:none;background-image:linear-gradient(#4cd9fd,#4cd9fd);background-repeat:no-repeat;background-size:100% 1px;background-position:0 calc(100% - 1px)}
+strong,b{color:#fff}
+.pn{position:absolute;bottom:.36in;right:.61in;font-size:7pt;color:rgba(255,255,255,.7)}
+`;
+  const tab = d.practice ? `<div class="tab">${d.practiceUrl ? `<a href="${esc(d.practiceUrl)}">${esc(d.practice)}</a>` : esc(d.practice)}</div>` : '';
+  const P = l => `<div class="cols">${l.map(h => `<p>${h}</p>`).join('')}</div>`;
+  // measure: the first article page starts below the headline, later pages start near the top
+  const lay = await b.newPage({ viewport: { width: 816, height: 1056 } });
+  await lay.setContent(`<!doctype html><html><head><meta charset="utf-8"><style>${css}</style></head><body><div id="m"></div></body></html>`, { waitUntil: 'load' });
+  const headH = await lay.evaluate(h => { const m = document.getElementById('m'); m.innerHTML = `<section class="pg"><h1>${h}</h1></section>`; const e = m.querySelector('h1'); return e.offsetTop + e.offsetHeight; }, esc(d.p2Head || d.title));
+  const top1 = Math.round(headH + 52), topN = 96;
+  const fits = (l, top) => lay.evaluate(([h, t]) => { const m = document.getElementById('m'); m.innerHTML = `<section class="pg"><div class="area" style="top:${t}px">${h}</div></section>`; const c = m.querySelector('.cols'); const a = m.querySelector('.area'); const last = c.lastElementChild; if (!last) return true; const r = last.getBoundingClientRect(), ar = a.getBoundingClientRect(); return r.bottom <= ar.bottom + 1 && r.right <= ar.right + 1; }, [P(l), top]);
+  const pages = []; let rest = paras.slice(); let top = top1;
+  while (rest.length) { let k = 0; while (k < rest.length && await fits(rest.slice(0, k + 1), top)) k++; if (!k) k = 1; pages.push({ top, l: rest.slice(0, k) }); rest = rest.slice(k); top = topN; }
+  await lay.close();
+  let body = `<section class="pg cv" style="background-image:url('${cover}')"></section>`;
+  pages.forEach((pg, i) => { body += `<section class="pg">${tab}${i === 0 ? `<h1>${esc(d.p2Head || d.title)}</h1>` : ''}<div class="area" style="top:${pg.top}px">${P(pg.l)}</div><div class="pn">${i + 2}</div></section>`; });
+  const pp = await b.newPage();
+  await pp.setContent(`<!doctype html><html><head><meta charset="utf-8"><title>City Shift Finance - ${esc(d.title)}</title><style>${css}</style></head><body>${body}</body></html>`, { waitUntil: 'load' });
+  await pp.waitForTimeout(500);
+  await pp.pdf({ path: OUT, preferCSSPageSize: true, printBackground: true });
+}
