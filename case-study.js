@@ -211,4 +211,14 @@ strong,b{color:#fff}
   await pp.setContent(`<!doctype html><html><head><meta charset="utf-8"><title>City Shift Finance - ${esc(d.title)}</title><style>${css}${fsCss}</style></head><body>${body}</body></html>`, { waitUntil: 'load' });
   await pp.waitForTimeout(500);
   await pp.pdf({ path: OUT, preferCSSPageSize: true, printBackground: true });
+  // Always open on the cover (page 1, whole page in view) and carry the firm as author.
+  try {
+    const fs = require('fs'); const { PDFDocument, PDFName } = require('pdf-lib');
+    const doc = await PDFDocument.load(fs.readFileSync(OUT));
+    const first = doc.getPage(0);
+    doc.catalog.set(PDFName.of('OpenAction'), doc.context.obj([first.ref, PDFName.of('Fit')]));
+    doc.catalog.set(PDFName.of('PageLayout'), PDFName.of('SinglePage'));
+    doc.setTitle('City Shift Finance - ' + d.title, { showInWindowTitleBar: true }); doc.setAuthor('City Shift Finance'); doc.setCreator('City Shift Finance');
+    fs.writeFileSync(OUT, await doc.save());
+  } catch (e) { console.log('open-on-cover step skipped: ' + e.message); }
 }
