@@ -146,7 +146,7 @@ strong,b{color:#fff}
   let body = `<section class="pg cover"><div class="im" style="background-image:url('${hero}')"></div><div class="wm">CITY SHIFT<small>FINANCE</small></div><div class="tx"><p class="meta">${d.practiceUrl ? `<a href="${esc(d.practiceUrl)}">${esc(d.practice)}</a>` : esc(d.practice)} | Case Study</p><h1>${esc(d.title)}</h1>${d.standfirst ? `<p class="sf">${esc(d.standfirst)}</p>` : ''}</div></section>`;
   pages.forEach((h, i) => { body += `<section class="pg"><div class="area">${h}</div>${foot(i + 2)}</section>`; });
   const pp = await b.newPage();
-  await pp.setContent(`<!doctype html><html><head><meta charset="utf-8"><title>City Shift Finance - ${esc(d.title)}</title><style>${css}</style></head><body>${body}</body></html>`, { waitUntil: 'load' });
+  await pp.setContent(`<!doctype html><html><head><meta charset="utf-8"><title>City Shift Finance - ${esc(d.title)}</title><style>${css}${fsCss}</style></head><body>${body}</body></html>`, { waitUntil: 'load' });
   await pp.waitForTimeout(500);
   await pp.pdf({ path: OUT, preferCSSPageSize: true, printBackground: true });
 };
@@ -155,7 +155,8 @@ strong,b{color:#fff}
 // ---------------------------------------------------------------------------
 // Cover + article layout (approved Oct 2026, modeled on McKinsey on Finance page 3).
 // Used when the PDF content box has "cover_image", "page2_headline" and "page2_body".
-// Page 1: the designed cover image, full page. Page 2 onward: blue gradient, practice tab
+// Page 1: the designed cover image, full page. A "Connect with us" button (contact page) closes the article and is kept on
+// page 2 by easing the body size down to 7.6pt at most. Page 2 onward: blue gradient, practice tab
 // top right, large serif headline, body in two columns; long text continues on more pages.
 // Without those fields the original portrait layout above is used, unchanged.
 async function coverArticle(b, d, OUT) {
@@ -176,26 +177,38 @@ body{font-family:"Helvetica Now","Helvetica Neue",Helvetica,Arial,sans-serif;col
 h1{position:absolute;top:1.28in;left:1.64in;right:.83in;font:600 34pt/1.08 "Tiempos Headline",Georgia,serif;color:#fff}
 .area{position:absolute;left:1.64in;right:.61in;bottom:.83in}
 .cols{column-count:2;column-gap:.31in;height:100%;column-fill:auto}
-p{font-size:8.4pt;line-height:1.5;color:rgba(255,255,255,.92);margin:0 0 .125in}
+p{font-size:var(--fs,8.4pt);line-height:1.5;color:rgba(255,255,255,.92);margin:0 0 .125in}
 p a{color:inherit;text-decoration:none;background-image:linear-gradient(#4cd9fd,#4cd9fd);background-repeat:no-repeat;background-size:100% 1px;background-position:0 calc(100% - 1px)}
 strong,b{color:#fff}
 .pn{position:absolute;bottom:.36in;right:.61in;font-size:7pt;color:rgba(255,255,255,.7)}
+.cta{break-inside:avoid;padding-top:.06in}
+.cta a{display:inline-flex;align-items:center;gap:.09in;background:#2251FF;color:#fff;text-decoration:none;font-weight:500;font-size:10pt;padding:.13in .24in}
+.cta svg{width:.17in;height:.17in;flex:none}
 `;
   const tab = d.practice ? `<div class="tab">${d.practiceUrl ? `<a href="${esc(d.practiceUrl)}">${esc(d.practice)}</a>` : esc(d.practice)}</div>` : '';
-  const P = l => `<div class="cols">${l.map(h => `<p>${h}</p>`).join('')}</div>`;
+  // "Connect with us" button (approved Oct 2026): sits at the end of the article, on page 2 whenever possible
+  const cta = `<div class="cta"><a href="${esc(d.contact || '/contact/')}"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.6"><rect x="3" y="5.5" width="18" height="13"/><path d="M3 6l9 7 9-7"/></svg>Connect with us</a></div>`;
+  const P = (l, last) => `<div class="cols">${l.map(h => `<p>${h}</p>`).join('')}${last ? cta : ''}</div>`;
   // measure: the first article page starts below the headline, later pages start near the top
   const lay = await b.newPage({ viewport: { width: 816, height: 1056 } });
   await lay.setContent(`<!doctype html><html><head><meta charset="utf-8"><style>${css}</style></head><body><div id="m"></div></body></html>`, { waitUntil: 'load' });
   const headH = await lay.evaluate(h => { const m = document.getElementById('m'); m.innerHTML = `<section class="pg"><h1>${h}</h1></section>`; const e = m.querySelector('h1'); return e.offsetTop + e.offsetHeight; }, esc(d.p2Head || d.title));
   const top1 = Math.round(headH + 52), topN = 96;
-  const fits = (l, top) => lay.evaluate(([h, t]) => { const m = document.getElementById('m'); m.innerHTML = `<section class="pg"><div class="area" style="top:${t}px">${h}</div></section>`; const c = m.querySelector('.cols'); const a = m.querySelector('.area'); const last = c.lastElementChild; if (!last) return true; const r = last.getBoundingClientRect(), ar = a.getBoundingClientRect(); return r.bottom <= ar.bottom + 1 && r.right <= ar.right + 1; }, [P(l), top]);
-  const pages = []; let rest = paras.slice(); let top = top1;
-  while (rest.length) { let k = 0; while (k < rest.length && await fits(rest.slice(0, k + 1), top)) k++; if (!k) k = 1; pages.push({ top, l: rest.slice(0, k) }); rest = rest.slice(k); top = topN; }
+  let fsz = 8.4; // body size; reduced a little (never below 7.6pt) so the article and button stay on page 2
+  const fits = (l, top, last) => lay.evaluate(([h, t, f]) => { const m = document.getElementById('m'); m.innerHTML = `<section class="pg"><div class="area" style="top:${t}px;font-size:${f}pt">${h}</div></section>`; m.querySelectorAll('.area p').forEach(p => p.style.fontSize = f + 'pt'); const c = m.querySelector('.cols'); const a = m.querySelector('.area'); const last = c.lastElementChild; if (!last) return true; const r = last.getBoundingClientRect(), ar = a.getBoundingClientRect(); return r.bottom <= ar.bottom + 1 && r.right <= ar.right + 1; }, [P(l, last), top, fsz]);
+  const pages = [];
+  while (fsz > 7.6 && !(await fits(paras, top1, true))) fsz = Math.round((fsz - 0.2) * 10) / 10;
+  if (await fits(paras, top1, true)) pages.push({ top: top1, l: paras, last: true });
+  else { // very long article: continue on more pages, button after the last paragraph
+    let rest = paras.slice(); let top = top1;
+    while (rest.length) { let k = 0; while (k < rest.length && await fits(rest.slice(0, k + 1), top, k + 1 === rest.length)) k++; if (!k) k = 1; pages.push({ top, l: rest.slice(0, k), last: k === rest.length }); rest = rest.slice(k); top = topN; }
+  }
   await lay.close();
+  const fsCss = `.area p{font-size:${fsz}pt}`;
   let body = `<section class="pg cv" style="background-image:url('${cover}')"></section>`;
-  pages.forEach((pg, i) => { body += `<section class="pg">${tab}${i === 0 ? `<h1>${esc(d.p2Head || d.title)}</h1>` : ''}<div class="area" style="top:${pg.top}px">${P(pg.l)}</div><div class="pn">${i + 2}</div></section>`; });
+  pages.forEach((pg, i) => { body += `<section class="pg">${tab}${i === 0 ? `<h1>${esc(d.p2Head || d.title)}</h1>` : ''}<div class="area" style="top:${pg.top}px">${P(pg.l, pg.last)}</div><div class="pn">${i + 2}</div></section>`; });
   const pp = await b.newPage();
-  await pp.setContent(`<!doctype html><html><head><meta charset="utf-8"><title>City Shift Finance - ${esc(d.title)}</title><style>${css}</style></head><body>${body}</body></html>`, { waitUntil: 'load' });
+  await pp.setContent(`<!doctype html><html><head><meta charset="utf-8"><title>City Shift Finance - ${esc(d.title)}</title><style>${css}${fsCss}</style></head><body>${body}</body></html>`, { waitUntil: 'load' });
   await pp.waitForTimeout(500);
   await pp.pdf({ path: OUT, preferCSSPageSize: true, printBackground: true });
 }
