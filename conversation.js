@@ -7,6 +7,7 @@
 //  - body pages: practice tag top right (links to the practice page), page number bottom right;
 //    Executive Conversation = all questions and answers in two columns;
 //    Book = one page per question with its image, then the author image and the three end columns;
+//  - no in-text links (only the practice tag and the Connect with us button link out);
 //  - last block on every PDF: "WHO WE ARE" (homepage meta description, read live) + centered
 //    "Connect with us" button (the practice's Contact link from the page header).
 // Book cover title = the real book title, read from the ABOUT THE BOOK column ("<title> was written by ...");
@@ -18,7 +19,8 @@ module.exports = async function conversationPdf(b, p, OUT) {
   const d = await p.evaluate(() => {
     const q = (s, r) => (r || document).querySelector(s);
     const T = (s, r) => { const e = q(s, r); return e ? e.textContent.replace(/\s+/g, ' ').trim() : ''; };
-    const clean = el => { const c = el.cloneNode(true); c.querySelectorAll('*').forEach(n => { if (!['A', 'STRONG', 'B', 'EM', 'I', 'SUP', 'BR'].includes(n.tagName)) { n.replaceWith(...n.childNodes); return; } [...n.attributes].forEach(a => { if (!(n.tagName === 'A' && a.name === 'href')) n.removeAttribute(a.name); }); if (n.tagName === 'A') n.setAttribute('href', n.href); }); return c.innerHTML.trim(); };
+    // in-text links (including automatic contextual links) are dropped: only the text is kept, so the PDF never points to a page that may later be removed
+    const clean = el => { const c = el.cloneNode(true); c.querySelectorAll('*').forEach(n => { if (!['STRONG', 'B', 'EM', 'I', 'SUP', 'BR'].includes(n.tagName)) { n.replaceWith(...n.childNodes); return; } [...n.attributes].forEach(a => n.removeAttribute(a.name)); }); return c.innerHTML.trim(); };
     const paras = el => el ? [...el.querySelectorAll('p')].filter(x => x.textContent.trim()).map(clean) : [];
     const src = img => img ? (img.currentSrc || img.src || img.getAttribute('data-src') || '') : '';
     const svc = q('.csf-chm-service');
