@@ -42,7 +42,8 @@ module.exports = async function conversationPdf(b, p, OUT) {
       out.cols = [...document.querySelectorAll('.csf-book-end__column')].map(c => ({ h: T('h2, h3, h4', c), body: noLinks(q('.csf-book-end__copy', c)) }));
     } else {
       const qa = [];
-      [...document.querySelectorAll('.csf-conv-prose > p, .csf-conv-prose > div > p')].forEach(el => {
+      // any depth: some older conversations were pasted inside nested <div>s; cards/notes are skipped
+      [...document.querySelectorAll('.csf-conv-prose p')].filter(el => !el.closest('aside, .csf-conv-editorial-card, .csf-er-autolink-note')).forEach(el => {
         if (!el.textContent.trim()) return;
         const st = el.firstElementChild && el.firstElementChild.tagName === 'STRONG' && el.innerHTML.trim().startsWith('<strong') ? el.firstElementChild : null;
         const label = st ? st.textContent.trim() : '';
