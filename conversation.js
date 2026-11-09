@@ -57,7 +57,9 @@ module.exports = async function conversationPdf(b, p, OUT) {
   if (d.book ? !(d.sections || []).length : !(d.qa || []).some(x => x.q)) throw new Error('Conversation questions not found on the page');
 
   // images as data URLs (the PDF never depends on the site being reachable later)
-  const data = async u => { if (!u) return ''; try { const r = await p.request.get(u); if (r.ok() && /^image\//.test(r.headers()['content-type'] || '')) return 'data:' + r.headers()['content-type'] + ';base64,' + (await r.body()).toString('base64'); } catch (e) {} return ''; };
+  // images are re-encoded as JPEG (max 1800px wide) so the download stays small (a book PDF was 14 MB with PNGs)
+  const shrink = u => p.evaluate(async src => { const i = new Image(); i.src = src; await i.decode(); const k = Math.min(1, 1800 / i.naturalWidth); const c = document.createElement('canvas'); c.width = Math.round(i.naturalWidth * k); c.height = Math.round(i.naturalHeight * k); c.getContext('2d').drawImage(i, 0, 0, c.width, c.height); return c.toDataURL('image/jpeg', 0.86); }, u).catch(() => u);
+  const data = async u => { if (!u) return ''; try { const r = await p.request.get(u); if (r.ok() && /^image\//.test(r.headers()['content-type'] || '')) return await shrink('data:' + r.headers()['content-type'] + ';base64,' + (await r.body()).toString('base64')); } catch (e) {} return ''; };
   const hero = (await data(d.hero)) || (await data(d.og));
   if (d.book) { for (const s of d.sections) s.data = await data(s.img); d.endData = await data(d.endImg); }
   // cover background = the hero image's own background colour (top-left pixel), so the image blends in
