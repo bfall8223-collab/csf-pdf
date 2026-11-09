@@ -69,7 +69,8 @@ module.exports = async function conversationPdf(b, p, OUT) {
   if (d.book) { for (const s of d.sections) s.data = await data(s.img); d.endData = await data(d.endImg); }
   // cover background = the hero image's own background colour (top-left pixel), so the image blends in
   let coverBg = '#071D46';
-  if (hero) { try { coverBg = await p.evaluate(async u => { const i = new Image(); i.src = u; await i.decode(); const c = document.createElement('canvas'); c.width = 8; c.height = 8; const x = c.getContext('2d'); x.drawImage(i, 0, 0, 8, 8, 0, 0, 8, 8); const px = x.getImageData(1, 1, 1, 1).data; return 'rgb(' + px[0] + ',' + px[1] + ',' + px[2] + ')'; }, hero); } catch (e) {} }
+  if (hero) { try { coverBg = await p.evaluate(async u => { const i = new Image(); i.src = u; await i.decode(); const c = document.createElement('canvas'); c.width = 8; c.height = 8; const x = c.getContext('2d'); x.drawImage(i, 0, 0, 8, 8, 0, 0, 8, 8); const px = x.getImageData(1, 1, 1, 1).data; const lum = (0.2126 * px[0] + 0.7152 * px[1] + 0.0722 * px[2]) / 255; return lum > 0.3 ? '' : 'rgb(' + px[0] + ',' + px[1] + ',' + px[2] + ')'; }, hero) || '#071D46'; } catch (e) {} }
+  // (a light image background, e.g. a white studio photo, keeps the site blue so the white title stays readable)
   // WHO WE ARE: the homepage's own description (Yoast), read live
   let who = '';
   try { const q2 = await b.newPage(); await q2.goto(d.origin + '/', { waitUntil: 'domcontentloaded', timeout: 45000 }); who = await q2.evaluate(() => { const g = s => { const e = document.querySelector(s); return e ? (e.getAttribute('content') || '').trim() : ''; }; return g('meta[name="description"]') || g('meta[property="og:description"]'); }); await q2.close(); } catch (e) {}
