@@ -35,7 +35,9 @@ module.exports = async function conversationPdf(b, p, OUT) {
       out.part = T('.csf-book-interview-part');
       out.sections = [...document.querySelectorAll('.csf-book-interview-section')].map(s => ({ q: T('h2, h3', s), img: src(q('figure img', s)), a: paras(q('.csf-book-interview-answer', s)) }));
       out.endImg = src(q('.csf-book-end__image img'));
-      out.cols = [...document.querySelectorAll('.csf-book-end__column')].map(c => ({ h: T('h2, h3, h4', c), body: paras(q('.csf-book-end__copy', c)) }));
+      // the column links (About the author, profile, Related interview, Order the book) stay on the website only
+      const noLinks = el => { if (!el) return []; const c = el.cloneNode(true); c.querySelectorAll('.csf-book-end__link').forEach(n => n.remove()); [...c.querySelectorAll('p')].forEach(x => { const a = x.querySelector('a'); if (a && x.textContent.trim() === a.textContent.trim()) x.remove(); }); return paras(c); };
+      out.cols = [...document.querySelectorAll('.csf-book-end__column')].map(c => ({ h: T('h2, h3, h4', c), body: noLinks(q('.csf-book-end__copy', c)) }));
     } else {
       const qa = [];
       [...document.querySelectorAll('.csf-conv-prose > p, .csf-conv-prose > div > p')].forEach(el => {
