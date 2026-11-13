@@ -20,7 +20,9 @@ module.exports = async function reportPdf(b, p, OUT) {
     document.querySelectorAll('.csf-ra-fade').forEach(e => e.classList.remove('csf-ra-fade'));
     document.querySelectorAll('.csf-ra-gate').forEach(e => e.remove());
   });
-  await p.addStyleTag({ content: '.csf-er-fn__pop{display:none!important}.lv-hero-video,.csf-er-hero__pause{display:none!important}' });
+  await p.addStyleTag({ content: '.csf-er-fn__pop{display:none!important}.lv-hero-video,.csf-er-hero__pause{display:none!important}.lv-chart__fig{position:static!important;top:auto!important}' });
+  // fixed and sticky site furniture (header, chapter menu, assistant, admin bar) would sit on top of the exhibit screenshots
+  await p.evaluate(() => { document.querySelectorAll('body *').forEach(e => { const ps = getComputedStyle(e).position; if ((ps === 'fixed' || ps === 'sticky') && !e.closest('figure.csf-col-ex, .lv-ops__grid, .lv-full__right')) e.style.setProperty('visibility', 'hidden', 'important'); }); });
   await p.waitForTimeout(1500);
 
   const d = await p.evaluate(() => {
@@ -131,7 +133,7 @@ html,body{background:#071D46}
 .box{break-inside:avoid;margin-top:.3in;background:rgba(255,255,255,.06);padding:.22in .25in}
 .boxh{font-size:9px;letter-spacing:.12em;text-transform:uppercase;color:#3AADFA;margin-bottom:10px}
 .box .cols{font-size:8.8px}
-.ex{display:block;width:100%;margin:.18in 0 .1in;break-inside:avoid}
+.ex{display:block;width:100%;max-height:8.4in;object-fit:contain;object-position:left top;margin:.18in 0 .1in;break-inside:avoid}
 .exlbl{font-size:9px;letter-spacing:.08em;color:#9fb6ff;margin-bottom:4px}
 .notes{font-size:8px;line-height:1.55;color:#c9d6f5;margin-top:.12in}
 .notes p{margin:0 0 6px}
