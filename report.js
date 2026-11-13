@@ -22,7 +22,7 @@ module.exports = async function reportPdf(b, p, OUT) {
   });
   await p.addStyleTag({ content: '.csf-er-fn__pop{display:none!important}.lv-hero-video,.csf-er-hero__pause{display:none!important}.lv-chart__fig{position:static!important;top:auto!important}' });
   // fixed and sticky site furniture (header, chapter menu, assistant, admin bar) would sit on top of the exhibit screenshots
-  await p.evaluate(() => { document.querySelectorAll('body *').forEach(e => { const ps = getComputedStyle(e).position; if ((ps === 'fixed' || ps === 'sticky') && !e.closest('figure.csf-col-ex, .lv-ops__grid, .lv-full__right')) e.style.setProperty('visibility', 'hidden', 'important'); }); });
+  await p.evaluate(() => { document.querySelectorAll('body *').forEach(e => { const ps = getComputedStyle(e).position; if ((ps === 'fixed' || ps === 'sticky') && !e.closest('figure.csf-col-ex, .lv-ops__grid, .lv-full__right') && !e.querySelector('figure.csf-col-ex, .lv-ops__grid, .lv-full__right')) e.style.setProperty('visibility', 'hidden', 'important'); }); });
   await p.waitForTimeout(1500);
 
   const d = await p.evaluate(() => {
