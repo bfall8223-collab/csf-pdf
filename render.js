@@ -11,6 +11,8 @@ await p.goto(URL_,{waitUntil:'load',timeout:90000});await p.waitForSelector('.cs
 if(await p.$('.csf-cs-bd')){await require('./case-study.js')(b,p,OUT);await b.close();return;}
 // Executive Conversations and Book Recommendations (csf_exec_conv) use their own portrait design: see conversation.js
 if(await p.$('.csf-conv-prose')){await require('./conversation.js')(b,p,OUT);await b.close();return;}
+// Las Vegas monthly report (WordPress page, main.lv-main) uses its own portrait magazine design: see report.js
+if(await p.$('main.lv-main')){await require('./report.js')(b,p,OUT);await b.close();return;}
 await p.addStyleTag({content:'.csf-report-exhibit button,.csf-report-exhibit [role=button]{display:none!important}'});
 // 1. content straight from the page (links, bold and italics kept)
 const d=await p.evaluate(()=>{
