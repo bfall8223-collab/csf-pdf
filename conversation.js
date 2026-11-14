@@ -1,9 +1,7 @@
 // Portrait (US Letter) PDF for Executive Conversations and Book Recommendations (post type csf_exec_conv).
 // Called from render.js when the page has the conversation layout (.csf-conv-prose).
-// Design approved Nov 9 2026: one solid site blue (#071D46) on every page, no gradients or fades;
-//  - cover: "City Shift Finance" centered (light Helvetica Now), label box under it
-//    ("Executive Conversation" or "Book Recommendation"), serif title, standfirst, hero image at the
-//    bottom on a background sampled from the image itself so the image never shows as a box;
+// Cover redesigned Nov 13 2026 (see the cover section below): same design as the cover in the page's Downloads block.
+// Body pages: design approved Nov 9 2026, one solid site blue (#071D46), no gradients or fades;
 //  - body pages: practice tag top right (links to the practice page), page number bottom right;
 //    Executive Conversation = all questions and answers in two columns;
 //    Book = one page per question with its image, then the author image and the three end columns;
@@ -67,21 +65,22 @@ module.exports = async function conversationPdf(b, p, OUT) {
   const data = async u => { if (!u) return ''; try { const r = await p.request.get(u); if (r.ok() && /^image\//.test(r.headers()['content-type'] || '')) return await shrink('data:' + r.headers()['content-type'] + ';base64,' + (await r.body()).toString('base64')); } catch (e) {} return ''; };
   const hero = (await data(d.hero)) || (await data(d.og));
   if (d.book) { for (const s of d.sections) s.data = await data(s.img); d.endData = await data(d.endImg); }
-  // cover background = the hero image's own background colour (top-left pixel), so the image blends in
+  // cover background = the hero image's own background colour (average of three pixels along the top edge), so the image blends in
   let coverBg = '#071D46';
-  if (hero) { try { coverBg = await p.evaluate(async u => { const i = new Image(); i.src = u; await i.decode(); const c = document.createElement('canvas'); c.width = 8; c.height = 8; const x = c.getContext('2d'); x.drawImage(i, 0, 0, 8, 8, 0, 0, 8, 8); const px = x.getImageData(1, 1, 1, 1).data; const lum = (0.2126 * px[0] + 0.7152 * px[1] + 0.0722 * px[2]) / 255; return lum > 0.3 ? '' : 'rgb(' + px[0] + ',' + px[1] + ',' + px[2] + ')'; }, hero) || '#071D46'; } catch (e) {} }
+  if (hero) { try { coverBg = await p.evaluate(async u => { const i = new Image(); i.src = u; await i.decode(); const c = document.createElement('canvas'); c.width = i.naturalWidth; c.height = i.naturalHeight; const x = c.getContext('2d'); x.drawImage(i, 0, 0); let r = 0, g = 0, bl = 0; [[5, 5], [i.naturalWidth - 6, 5], [Math.round(i.naturalWidth / 2), 3]].forEach(([a, bb]) => { const px = x.getImageData(a, bb, 1, 1).data; r += px[0]; g += px[1]; bl += px[2]; }); r /= 3; g /= 3; bl /= 3; const lum = (0.2126 * r + 0.7152 * g + 0.0722 * bl) / 255; return lum > 0.3 ? '' : 'rgb(' + Math.round(r) + ',' + Math.round(g) + ',' + Math.round(bl) + ')'; }, hero) || '#071D46'; } catch (e) {} }
   // (a light image background, e.g. a white studio photo, keeps the site blue so the white title stays readable)
   // WHO WE ARE: the homepage's own description (Yoast), read live
   let who = '';
   try { const q2 = await b.newPage(); await q2.goto(d.origin + '/', { waitUntil: 'domcontentloaded', timeout: 45000 }); who = await q2.evaluate(() => { const g = s => { const e = document.querySelector(s); return e ? (e.getAttribute('content') || '').trim() : ''; }; return g('meta[name="description"]') || g('meta[property="og:description"]'); }); await q2.close(); } catch (e) {}
 
   // real book title from "ABOUT THE BOOK": "<Title: Subtitle> was written by ..."
-  let coverTitle = d.title;
+  // Executive Conversation cover shows the guest's name ("A Conversation with Walter D. Woods" -> "Walter D. Woods")
+  let coverTitle = d.title.replace(/^\s*a\s+conversation\s+with\s+/i, '').trim();
   if (d.book) {
     const ab = (d.cols || []).find(c => /about the book/i.test(c.h));
     const txt = ab ? ab.body.join(' ').replace(/<[^>]+>/g, '') : '';
     const m = txt.match(/^(.+?)\s+was\s+(?:co-)?(?:written|published|authored)\b/i);
-    coverTitle = m ? m[1].trim() : (d.part || d.title);
+    coverTitle = (m ? m[1].trim() : (d.part || d.title)).split(':')[0].trim();
   }
 
   const esc = s => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
@@ -93,20 +92,23 @@ body{font-family:"Helvetica Now","Helvetica Neue",Helvetica,Arial,sans-serif;col
 .serif{font-family:"Tiempos Headline",Georgia,serif;font-weight:600}
 `;
   // ---------- cover ----------
-  const kind = d.book ? 'Book Recommendation' : 'Executive Conversation';
-  const imgH = d.book ? '7in' : '6.375in';
+  // Design approved Nov 13 2026 (same design as the cover in the page's Downloads block):
+  // no gradient; background = the image's own background colour; image anchored at the bottom, centred
+  // (Executive Conversation 110% of the page width, Book 126%); "City Shift Finance" centred at the top (small, muted);
+  // title in Tiempos Headline below it; Executive Conversations add "Executive Conversation" in site blue under the title,
+  // Books show no label. Sizes are the approved 230x300 thumbnail scaled to US Letter (x3.548).
+  const K = 816 / 230;
+  const px = v => (v * K).toFixed(1) + 'px';
   const coverHtml = `<!doctype html><html><head><meta charset="utf-8"><style>${base}
 @page{size:8.5in 11in;margin:0}
-html,body{background:${coverBg}}
+html,body{background:${coverBg};overflow:hidden}
 .pg{width:8.5in;height:11in;background:${coverBg};position:relative;overflow:hidden}
-.brand{position:absolute;top:.5in;left:0;right:0;text-align:center;font-size:15px;font-weight:400;letter-spacing:.01em}
-.kind{position:absolute;top:.82in;left:50%;transform:translateX(-50%);white-space:nowrap;font-size:9px;letter-spacing:.14em;color:#3AADFA;border:1px solid #3AADFA;padding:6px 10px;text-transform:uppercase}
-.txt{position:absolute;top:1.55in;left:1.3in;right:.9in}
-.t{font-size:${coverTitle.length > 70 ? 40 : 52}px;line-height:1.06}
-.sub{margin-top:22px;max-width:5.6in;font-size:15px;line-height:1.5;color:#dbe5ff}
-.img{position:absolute;left:0;right:0;bottom:0;height:${imgH};background:url('${hero}') center bottom/cover no-repeat}
-</style></head><body><div class="pg"><div class="brand">City Shift Finance</div><div class="kind">${esc(kind)}</div>
-<div class="txt"><div class="t serif">${esc(coverTitle)}</div><div class="sub">${esc(d.standfirst)}</div></div>${hero ? '<div class="img"></div>' : ''}</div></body></html>`;
+.img{position:absolute;left:50%;bottom:${d.book ? px(-4) : '0'};width:${d.book ? '126%' : '110%'};max-width:none;height:auto;transform:translateX(-50%);display:block}
+.txt{position:absolute;left:${px(18)};right:${px(18)};top:${px(16)}}
+.brand{font-family:"Helvetica Now","Helvetica Neue",Helvetica,Arial,sans-serif;font-weight:500;font-size:${px(8.5)};letter-spacing:.02em;color:rgba(255,255,255,.72);text-align:center}
+.t{font-family:"Tiempos Headline",Georgia,serif;font-weight:600;font-size:${px(coverTitle.length > 40 ? 20 : 24)};line-height:1.04;color:#fff;margin-top:${px(16)}}
+.kind{font-family:"Helvetica Now","Helvetica Neue",Helvetica,Arial,sans-serif;font-weight:700;font-size:${px(9.5)};color:#5FB4FF;margin-top:${px(11)}}
+</style></head><body><div class="pg">${hero ? `<img class="img" src="${hero}">` : ''}<div class="txt"><div class="brand">City Shift Finance</div><div class="t">${esc(coverTitle)}</div>${d.book ? '' : '<div class="kind">Executive Conversation</div>'}</div></div><script>(function(){var t=document.querySelector('.t'),f=parseFloat(getComputedStyle(t).fontSize);t.style.whiteSpace='nowrap';var w=t.parentNode.clientWidth;if(t.scrollWidth>w&&t.textContent.split(' ').length<4){while(t.scrollWidth>w&&f>40){f-=2;t.style.fontSize=f+'px';}}t.style.whiteSpace='';})();</script></body></html>`;
 
   // ---------- body ----------
   const btn = `<a class="btn" href="${esc(d.contact)}"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.6"><rect x="3" y="5.5" width="18" height="13"/><path d="M3 6l9 7 9-7"/></svg>Connect with us</a>`;
@@ -184,7 +186,7 @@ a{color:inherit;text-decoration:none}
       if (annots) annots.push(ref); else pgx.node.set(PDFName.of('Annots'), outDoc.context.obj([ref]));
     }
   }
-  outDoc.setTitle('City Shift Finance - ' + (d.book ? coverTitle : d.title));
+  outDoc.setTitle('City Shift Finance - ' + d.title);
   outDoc.setAuthor('City Shift Finance'); outDoc.setCreator('City Shift Finance'); outDoc.setProducer('City Shift Finance');
   require('fs').writeFileSync(OUT, await outDoc.save());
 };
