@@ -1,5 +1,6 @@
 // Landscape 16:9 editorial PDF, built automatically from a published CSF page.
 // Case studies are handed to case-study.js (portrait US Letter layout).
+// Deep Dives / Commentary are handed to editorial.js (portrait US Letter layout).
 // Executive Conversations / Book Recommendations are handed to conversation.js (portrait US Letter layout).
 const {chromium}=require('playwright');
 const URL_=process.argv[2], OUT=process.argv[3];
@@ -10,6 +11,8 @@ await p.goto(URL_,{waitUntil:'load',timeout:90000});await p.waitForSelector('.cs
 // Case studies (new layout) use their own portrait design: see case-study.js
 if(await p.$('.csf-cs-bd')){await require('./case-study.js')(b,p,OUT);await b.close();return;}
 // Executive Conversations and Book Recommendations (csf_exec_conv) use their own portrait design: see conversation.js
+// Deep Dives (main.csf-er) and Commentary (.csf-commentary) use the portrait editorial design: see editorial.js
+if(await p.$('main.csf-er, .csf-commentary')){await require('./editorial.js')(b,p,OUT);await b.close();return;}
 if(await p.$('.csf-conv-prose')){await require('./conversation.js')(b,p,OUT);await b.close();return;}
 // Las Vegas monthly report (WordPress page, main.lv-main) uses its own portrait magazine design: see report.js
 if(await p.$('main.lv-main')){await require('./report.js')(b,p,OUT);await b.close();return;}
