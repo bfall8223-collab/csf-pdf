@@ -129,7 +129,8 @@ html,body{background:${BLUE}} /* margins are painted in assemble */
 .h{font-size:34px;line-height:1.15;margin:0 0 .35in 0;max-width:6in}
 .cols{column-count:2;column-gap:.32in;font-size:9.6px;line-height:1.62;color:#e9efff}
 .cols p{margin:0 0 9px}
-.q{font-size:12.5px;line-height:1.4;color:#fff;margin:4px 0 8px;break-inside:avoid;break-after:avoid}
+.q{font-size:14px;line-height:1.4;color:#fff;font-weight:700;margin:16px 0 9px;break-inside:avoid;break-after:avoid}
+.cols>.q:first-child{margin-top:0}
 .sec{break-before:page}
 .qimg{width:100%;background-size:cover;background-position:center;margin:2px 0 14px;break-inside:avoid}
 .bigq{font-size:19px;line-height:1.25;margin:0 0 .25in}
