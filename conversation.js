@@ -25,7 +25,7 @@ module.exports = async function conversationPdf(b, p, OUT) {
     const contact = [...document.querySelectorAll('header a, nav a, a')].find(a => /^\s*contact\s*$/i.test(a.textContent) && /contact/i.test(a.href));
     const out = {
       title: T('.csf-report-hero__title') || T('h1'), standfirst: T('.csf-profile__bio'),
-      hero: src(q('.csf-report-hero__media img')), og: ((q('meta[property="og:image"]') || {}).content || ''),
+      hero: ((q('.csf-report-hero__media') || { getAttribute: () => '' }).getAttribute('data-csf-cover') || src(q('.csf-report-hero__media img'))), og: ((q('meta[property="og:image"]') || {}).content || ''),
       practice: svc ? svc.textContent.trim() : '', practiceUrl: svc ? svc.href : '',
       contact: contact ? contact.href : location.origin + '/contact/', origin: location.origin,
       book: !!q('.csf-book-interview-body'),
