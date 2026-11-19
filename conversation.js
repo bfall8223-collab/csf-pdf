@@ -38,6 +38,20 @@ module.exports = async function conversationPdf(b, p, OUT) {
       // the column links (About the author, profile, Related interview, Order the book) stay on the website only
       const noLinks = el => { if (!el) return []; const c = el.cloneNode(true); c.querySelectorAll('.csf-book-end__link').forEach(n => n.remove()); [...c.querySelectorAll('p')].forEach(x => { const a = x.querySelector('a'); if (a && x.textContent.trim() === a.textContent.trim()) x.remove(); }); return paras(c); };
       out.cols = [...document.querySelectorAll('.csf-book-end__column')].map(c => ({ h: T('h2, h3, h4', c), body: noLinks(q('.csf-book-end__copy', c)) }));
+    } else if (q('.csf-findings-input')) {
+      // Findings with Contributors (added Nov 19 2026): opening findings, then each contributor's input under his name, then the conclusion.
+      // The name label at the start of each input ("<strong>Name:</strong>") is dropped because the name is the heading above it.
+      const strip = el => { const c = el.cloneNode(true); const f = c.firstElementChild; if (f && f.tagName === 'STRONG' && /:\s*$/.test(f.textContent)) f.remove(); return clean(c).replace(/^\s+/, ''); };
+      const qa = [];
+      const op = paras(q('.csf-findings-opening')); if (op.length) qa.push({ who: '', a: op });
+      document.querySelectorAll('.csf-findings-input').forEach(box => {
+        const name = T('figcaption', box);
+        const a = [...box.querySelectorAll(':scope > p')].filter(x => x.textContent.trim()).map(strip);
+        if (name) qa.push({ q: name }); if (a.length) qa.push({ who: name, a });
+      });
+      const cc = q('.csf-findings-conclusion');
+      if (cc) { const a = [...cc.querySelectorAll('p')].filter(x => x.textContent.trim() && !x.closest('aside, .csf-conv-editorial-card, .csf-er-autolink-note')).map(clean); if (a.length) qa.push({ who: '', a }); }
+      out.qa = qa;
     } else {
       const qa = [];
       // any depth: some older conversations were pasted inside nested <div>s; cards/notes are skipped
