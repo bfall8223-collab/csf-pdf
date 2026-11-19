@@ -117,10 +117,10 @@ body{font-family:"Helvetica Now","Helvetica Neue",Helvetica,Arial,sans-serif;col
 @page{size:8.5in 11in;margin:0}
 html,body{background:${coverBg};overflow:hidden}
 .pg{width:8.5in;height:11in;background:${coverBg};position:relative;overflow:hidden}
-.img{position:absolute;left:50%;bottom:${d.book ? px(-4) : '0'};width:${d.book ? '126%' : '110%'};max-width:none;height:auto;transform:translateX(-50%);display:block}
+.img{position:absolute;left:50%;bottom:${d.book ? px(-4) : '0'};width:${d.book ? '126%' : (coverTitle.length > 48 ? '100%' : '110%')};max-width:none;height:auto;transform:translateX(-50%);display:block}
 .txt{position:absolute;left:${px(18)};right:${px(18)};top:${px(16)}}
 .brand{font-family:"Helvetica Now","Helvetica Neue",Helvetica,Arial,sans-serif;font-weight:500;font-size:${px(8.5)};letter-spacing:.02em;color:rgba(255,255,255,.72);text-align:center}
-.t{font-family:"Tiempos Headline",Georgia,serif;font-weight:600;font-size:${px(coverTitle.length > 40 ? 20 : 24)};line-height:1.04;color:#fff;margin-top:${px(16)}}
+.t{font-family:"Tiempos Headline",Georgia,serif;font-weight:600;font-size:${px(coverTitle.length > 48 ? 17 : coverTitle.length > 40 ? 20 : 24)};line-height:1.04;color:#fff;margin-top:${px(16)}}
 .kind{font-family:"Helvetica Now","Helvetica Neue",Helvetica,Arial,sans-serif;font-weight:700;font-size:${px(9.5)};color:#5FB4FF;margin-top:${px(11)}}
 </style></head><body><div class="pg">${hero ? `<img class="img" src="${hero}">` : ''}<div class="txt"><div class="brand">City Shift Finance</div><div class="t">${esc(coverTitle)}</div>${d.book ? '' : '<div class="kind">Executive Conversation</div>'}</div></div><script>(function(){var t=document.querySelector('.t'),f=parseFloat(getComputedStyle(t).fontSize);t.style.whiteSpace='nowrap';var w=t.parentNode.clientWidth;if(t.scrollWidth>w&&t.textContent.split(' ').length<4){while(t.scrollWidth>w&&f>40){f-=2;t.style.fontSize=f+'px';}}t.style.whiteSpace='';})();</script></body></html>`;
 
